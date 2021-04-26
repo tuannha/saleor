@@ -2585,12 +2585,12 @@ def test_draft_order_complete_channel_without_shipping_zones(
     )
     content = get_graphql_content(response)
     data = content["data"]["draftOrderComplete"]
-    assert len(data["orderErrors"]) == 1
-    assert (
-        data["orderErrors"][0]["code"]
-        == OrderErrorCode.SHIPPING_METHOD_NOT_APPLICABLE.name
-    )
-    assert data["orderErrors"][0]["field"] == "shipping"
+    assert len(data["orderErrors"]) == 3
+    assert {error["code"] for error in data["orderErrors"]} == {
+        OrderErrorCode.SHIPPING_METHOD_NOT_APPLICABLE.name,
+        OrderErrorCode.INSUFFICIENT_STOCK.name,
+    }
+    assert {error["field"] for error in data["orderErrors"]} == {"shipping", "lines"}
 
 
 def test_draft_order_complete_product_without_inventory_tracking(
@@ -2669,12 +2669,12 @@ def test_draft_order_complete_not_available_shipping_method(
     data = content["data"]["draftOrderComplete"]["order"]
     content = get_graphql_content(response)
     data = content["data"]["draftOrderComplete"]
-    assert len(data["orderErrors"]) == 1
-    assert (
-        data["orderErrors"][0]["code"]
-        == OrderErrorCode.SHIPPING_METHOD_NOT_APPLICABLE.name
-    )
-    assert data["orderErrors"][0]["field"] == "shipping"
+    assert len(data["orderErrors"]) == 3
+    assert {error["code"] for error in data["orderErrors"]} == {
+        OrderErrorCode.SHIPPING_METHOD_NOT_APPLICABLE.name,
+        OrderErrorCode.INSUFFICIENT_STOCK.name,
+    }
+    assert {error["field"] for error in data["orderErrors"]} == {"shipping", "lines"}
 
 
 def test_draft_order_complete_out_of_stock_variant(
