@@ -19,8 +19,8 @@ from ....attribute.models import Attribute, AttributeValue
 from ....attribute.utils import associate_attribute_values_to_instance
 from ....core.taxes import TaxType
 from ....core.weight import WeightUnits
-from ....order import OrderStatus
-from ....order.models import OrderLine
+from ....order import OrderEvents, OrderStatus
+from ....order.models import OrderEvent, OrderLine
 from ....plugins.manager import PluginsManager
 from ....product import ProductMediaTypes
 from ....product.error_codes import ProductErrorCode
@@ -5825,6 +5825,23 @@ def test_delete_product_variant_in_draft_order(
 
     assert OrderLine.objects.filter(pk__in=not_draft_order_lines_pks).exists()
     mocked_recalculate_orders_task.assert_called_once_with([draft_order.id])
+
+    event = OrderEvent.objects.filter(
+        type=OrderEvents.ORDER_LINE_PRODUCT_DELETED
+    ).last()
+    assert event
+    assert event.order == draft_order
+    assert event.user == staff_api_client.user
+    expected_params = [
+        {
+            "item": str(line),
+            "line_pk": line.pk,
+            "quantity": line.quantity,
+        }
+        for line in draft_order.lines.all()
+    ]
+    for param in expected_params:
+        assert param in event.parameters
 
 
 def test_product_type(user_api_client, product_type, channel_USD):

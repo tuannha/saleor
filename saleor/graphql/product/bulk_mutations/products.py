@@ -6,7 +6,7 @@ from django.db import transaction
 from graphene.types import InputObjectType
 
 from ....core.permissions import ProductPermissions, ProductTypePermissions
-from ....order import OrderStatus
+from ....order import events as order_events
 from ....order import models as order_models
 from ....order.tasks import recalculate_orders_task
 from ....product import models
@@ -28,7 +28,7 @@ from ...core.types.common import (
 )
 from ...core.utils import get_duplicated_values
 from ...core.validators import validate_price_precision
-from ...utils import resolve_global_ids_to_primary_keys
+from ...utils import get_user_or_app_from_context, resolve_global_ids_to_primary_keys
 from ...warehouse.types import Warehouse
 from ..mutations.channels import ProductVariantChannelListingAddInput
 from ..mutations.products import (
@@ -38,7 +38,11 @@ from ..mutations.products import (
     StockInput,
 )
 from ..types import Product, ProductVariant
-from ..utils import create_stocks, get_used_variants_attribute_values
+from ..utils import (
+    create_stocks,
+    get_draft_order_lines_data_for_variants,
+    get_used_variants_attribute_values,
+)
 
 
 class CategoryBulkDelete(ModelBulkDeleteMutation):
@@ -108,12 +112,9 @@ class ProductBulkDelete(ModelBulkDeleteMutation):
         )
         variants_ids = [variant_id for _, variant_id in product_to_variant]
 
-        # get draft order lines for products
-        lines_id_and_orders_id = order_models.OrderLine.objects.filter(
-            variant__id__in=variants_ids, order__status=OrderStatus.DRAFT
-        ).values("pk", "order_id")
-        line_pks = {line["pk"] for line in lines_id_and_orders_id}
-        orders_id = {line["order_id"] for line in lines_id_and_orders_id}
+        requester = get_user_or_app_from_context(info.context)
+        draft_order_lines_data = get_draft_order_lines_data_for_variants(variants_ids)
+
         response = super().perform_mutation(
             _root,
             info,
@@ -123,9 +124,18 @@ class ProductBulkDelete(ModelBulkDeleteMutation):
         )
 
         # delete order lines for deleted variants
-        order_models.OrderLine.objects.filter(pk__in=line_pks).delete()
-        if orders_id:
-            recalculate_orders_task.delay(list(orders_id))
+        order_models.OrderLine.objects.filter(
+            pk__in=draft_order_lines_data.line_pks
+        ).delete()
+
+        # run order event for deleted lines
+        for order, order_lines in draft_order_lines_data.order_to_lines_mapping.items():
+            lines_data = [(line.quantity, line) for line in order_lines]
+            order_events.order_line_product_removed_event(order, requester, lines_data)
+
+        order_pks = draft_order_lines_data.order_pks
+        if order_pks:
+            recalculate_orders_task.delay(list(order_pks))
 
         return response
 
@@ -511,12 +521,10 @@ class ProductVariantBulkDelete(ModelBulkDeleteMutation):
     @transaction.atomic
     def perform_mutation(cls, _root, info, ids, **data):
         _, pks = resolve_global_ids_to_primary_keys(ids, ProductVariant)
-        # get draft order lines for variants
-        lines_id_and_orders_id = order_models.OrderLine.objects.filter(
-            variant__pk__in=pks, order__status=OrderStatus.DRAFT
-        ).values("pk", "order_id")
-        line_pks = {line["pk"] for line in lines_id_and_orders_id}
-        orders_id = {line["order_id"] for line in lines_id_and_orders_id}
+
+        requester = get_user_or_app_from_context(info.context)
+        draft_order_lines_data = get_draft_order_lines_data_for_variants(pks)
+
         product_pks = list(
             models.Product.objects.filter(variants__in=pks)
             .distinct()
@@ -542,9 +550,18 @@ class ProductVariantBulkDelete(ModelBulkDeleteMutation):
         )
 
         # delete order lines for deleted variants
-        order_models.OrderLine.objects.filter(pk__in=line_pks).delete()
-        if orders_id:
-            recalculate_orders_task.delay(list(orders_id))
+        order_models.OrderLine.objects.filter(
+            pk__in=draft_order_lines_data.line_pks
+        ).delete()
+
+        # run order event for deleted lines
+        for order, order_lines in draft_order_lines_data.order_to_lines_mapping.items():
+            lines_data = [(line.quantity, line) for line in order_lines]
+            order_events.order_line_variant_removed_event(order, requester, lines_data)
+
+        order_pks = draft_order_lines_data.order_pks
+        if order_pks:
+            recalculate_orders_task.delay(list(order_pks))
 
         # set new product default variant if any has been removed
         products = models.Product.objects.filter(
