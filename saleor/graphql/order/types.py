@@ -38,8 +38,9 @@ from ..channel import ChannelContext
 from ..channel.dataloaders import ChannelByIdLoader, ChannelByOrderLineIdLoader
 from ..core.connection import CountableDjangoObjectType
 from ..core.enums import LanguageCodeEnum
+from ..core.mutations import validation_error_to_error_type
 from ..core.scalars import PositiveDecimal
-from ..core.types.common import Image
+from ..core.types.common import Image, OrderError
 from ..core.types.money import Money, TaxedMoney
 from ..core.utils import str_to_enum
 from ..decorators import one_of_permissions_required, permission_required
@@ -669,6 +670,12 @@ class Order(CountableDjangoObjectType):
         description="List of all discounts assigned to the order.",
         required=False,
     )
+    errors = graphene.List(
+        graphene.NonNull(OrderError),
+        description="List of errors that occurred during order validation.",
+        default_value=[],
+        required=True,
+    )
 
     class Meta:
         description = "Represents an order in the shop."
@@ -1089,3 +1096,13 @@ class Order(CountableDjangoObjectType):
     @traced_resolver
     def resolve_language_code_enum(root, _info, **_kwargs):
         return LanguageCodeEnum[str_to_enum(root.language_code)]
+
+    @staticmethod
+    @traced_resolver
+    def resolve_errors(root, _info, **_kwargs):
+        country = get_order_country(root)
+        try:
+            validate_draft_order(root, country)
+        except ValidationError as e:
+            return validation_error_to_error_type(e, OrderError)
+        return []

@@ -2205,6 +2205,15 @@ ORDER_CAN_FINALIZE_QUERY = """
     query OrderQuery($id: ID!){
         order(id: $id){
             canFinalize
+            errors {
+                code
+                field
+                message
+                warehouse
+                orderLine
+                variants
+                orderLines
+            }
         }
     }
 """
@@ -2217,6 +2226,7 @@ def test_can_finalize_order(staff_api_client, permission_manage_orders, draft_or
     response = staff_api_client.post_graphql(ORDER_CAN_FINALIZE_QUERY, variables)
     content = get_graphql_content(response)
     assert content["data"]["order"]["canFinalize"] is True
+    assert not content["data"]["order"]["errors"]
 
 
 def test_can_finalize_order_invalid_shipping_method_set(
@@ -2229,6 +2239,13 @@ def test_can_finalize_order_invalid_shipping_method_set(
     response = staff_api_client.post_graphql(ORDER_CAN_FINALIZE_QUERY, variables)
     content = get_graphql_content(response)
     assert content["data"]["order"]["canFinalize"] is False
+    errors = content["data"]["order"]["errors"]
+    assert len(errors) == 3
+    assert {error["code"] for error in errors} == {
+        OrderErrorCode.SHIPPING_METHOD_NOT_APPLICABLE.name,
+        OrderErrorCode.INSUFFICIENT_STOCK.name,
+    }
+    assert {error["field"] for error in errors} == {"shipping", "lines"}
 
 
 def test_can_finalize_order_no_order_lines(
@@ -2242,6 +2259,10 @@ def test_can_finalize_order_no_order_lines(
     response = staff_api_client.post_graphql(ORDER_CAN_FINALIZE_QUERY, variables)
     content = get_graphql_content(response)
     assert content["data"]["order"]["canFinalize"] is False
+    errors = content["data"]["order"]["errors"]
+    assert len(errors) == 1
+    assert errors[0]["code"] == OrderErrorCode.REQUIRED.name
+    assert errors[0]["field"] == "lines"
 
 
 def test_can_finalize_order_product_unavailable_for_purchase(
@@ -2253,7 +2274,8 @@ def test_can_finalize_order_product_unavailable_for_purchase(
     order.status = OrderStatus.DRAFT
     order.save(update_fields=["status"])
 
-    product = order.lines.first().variant.product
+    line = order.lines.first()
+    product = line.variant.product
     product.channel_listings.update(available_for_purchase=None)
 
     order_id = graphene.Node.to_global_id("Order", order.id)
@@ -2266,6 +2288,11 @@ def test_can_finalize_order_product_unavailable_for_purchase(
     # then
     content = get_graphql_content(response)
     assert content["data"]["order"]["canFinalize"] is False
+    errors = content["data"]["order"]["errors"]
+    assert len(errors) == 1
+    assert errors[0]["code"] == OrderErrorCode.PRODUCT_UNAVAILABLE_FOR_PURCHASE.name
+    assert errors[0]["field"] == "lines"
+    assert errors[0]["orderLines"] == [graphene.Node.to_global_id("OrderLine", line.pk)]
 
 
 def test_can_finalize_order_product_available_for_purchase_from_tomorrow(
@@ -2277,7 +2304,8 @@ def test_can_finalize_order_product_available_for_purchase_from_tomorrow(
     order.status = OrderStatus.DRAFT
     order.save(update_fields=["status"])
 
-    product = order.lines.first().variant.product
+    line = order.lines.first()
+    product = line.variant.product
     product.channel_listings.update(
         available_for_purchase=date.today() + timedelta(days=1)
     )
@@ -2292,6 +2320,11 @@ def test_can_finalize_order_product_available_for_purchase_from_tomorrow(
     # then
     content = get_graphql_content(response)
     assert content["data"]["order"]["canFinalize"] is False
+    errors = content["data"]["order"]["errors"]
+    assert len(errors) == 1
+    assert errors[0]["code"] == OrderErrorCode.PRODUCT_UNAVAILABLE_FOR_PURCHASE.name
+    assert errors[0]["field"] == "lines"
+    assert errors[0]["orderLines"] == [graphene.Node.to_global_id("OrderLine", line.pk)]
 
 
 def test_validate_draft_order(draft_order):
