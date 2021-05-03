@@ -2907,6 +2907,7 @@ CREATE_PRODUCT_MUTATION = """
                                     name
                                     reference
                                     richText
+                                    boolean
                                     file {
                                         url
                                         contentType
@@ -3126,6 +3127,63 @@ def test_create_product_with_rich_text_attribute(
     ]
     for attr_data in data["product"]["attributes"]:
         assert attr_data in expected_attributes_data
+
+
+def test_create_product_with_boolean_attribute(
+    staff_api_client,
+    product_type,
+    category,
+    boolean_attribute,
+    permission_manage_products,
+    product,
+):
+    query = CREATE_PRODUCT_MUTATION
+
+    product_type_id = graphene.Node.to_global_id("ProductType", product_type.pk)
+    category_id = graphene.Node.to_global_id("Category", category.pk)
+    product_name = "test name"
+
+    # Add second attribute
+    product_type.product_attributes.add(boolean_attribute)
+    boolean_attribute_id = graphene.Node.to_global_id("Attribute", boolean_attribute.id)
+
+    # test creating root product
+    variables = {
+        "input": {
+            "productType": product_type_id,
+            "category": category_id,
+            "name": product_name,
+            "attributes": [
+                {
+                    "id": boolean_attribute_id,
+                    "boolean": False,
+                }
+            ],
+        }
+    }
+
+    response = staff_api_client.post_graphql(
+        query, variables, permissions=[permission_manage_products]
+    )
+    content = get_graphql_content(response)
+    data = content["data"]["productCreate"]
+    assert data["errors"] == []
+    assert data["product"]["name"] == product_name
+
+    expected_attributes_data = {
+        "attribute": {"slug": "boolean"},
+        "values": [
+            {
+                "slug": ANY,
+                "name": "Boolean: No",
+                "reference": None,
+                "richText": None,
+                "boolean": False,
+                "file": None,
+            }
+        ],
+    }
+    assert expected_attributes_data in data["product"]["attributes"]
 
 
 SEARCH_PRODUCTS_QUERY = """
@@ -6465,6 +6523,7 @@ PRODUCT_TYPE_CREATE_MUTATION = """
                     values {
                         name
                         richText
+                        boolean
                     }
                 }
             }
@@ -6597,6 +6656,46 @@ def test_create_product_type_with_rich_text_attribute(
     ]
     for attribute in data["productAttributes"]:
         assert attribute in expected_attributes
+
+
+def test_create_product_type_with_boolean_attribute(
+    staff_api_client,
+    product_type,
+    permission_manage_product_types_and_attributes,
+    boolean_attribute,
+):
+    query = PRODUCT_TYPE_CREATE_MUTATION
+    product_type_name = "test type"
+    slug = "test-type"
+
+    product_type.product_attributes.add(boolean_attribute)
+    product_attributes_ids = [
+        graphene.Node.to_global_id("Attribute", attr.id)
+        for attr in product_type.product_attributes.all()
+    ]
+
+    variables = {
+        "name": product_type_name,
+        "slug": slug,
+        "productAttributes": product_attributes_ids,
+    }
+
+    response = staff_api_client.post_graphql(
+        query, variables, permissions=[permission_manage_product_types_and_attributes]
+    )
+    content = get_graphql_content(response)
+    data = content["data"]["productTypeCreate"]["productType"]
+    errors = content["data"]["productTypeCreate"]["errors"]
+
+    assert not errors
+    assert data["name"] == product_type_name
+    assert data["slug"] == slug
+
+    expected_attribute_data = {
+        "name": "Boolean",
+        "values": [{"name": "Boolean: Yes", "richText": None, "boolean": True}],
+    }
+    assert expected_attribute_data in data["productAttributes"]
 
 
 @pytest.mark.parametrize(

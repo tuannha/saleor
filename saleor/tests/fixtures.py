@@ -814,6 +814,26 @@ def rich_text_attribute(db):
 
 
 @pytest.fixture
+def boolean_attribute(db):
+    attribute = Attribute.objects.create(
+        slug="boolean",
+        name="Boolean",
+        type=AttributeType.PRODUCT_TYPE,
+        input_type=AttributeInputType.BOOLEAN,
+        filterable_in_storefront=True,
+        filterable_in_dashboard=True,
+        available_in_grid=True,
+    )
+    AttributeValue.objects.create(
+        attribute=attribute,
+        name="Boolean: Yes",
+        slug=f"instance_{attribute.id}",
+        boolean=True,
+    )
+    return attribute
+
+
+@pytest.fixture
 def color_attribute_without_values(db):  # pylint: disable=W0613
     return Attribute.objects.create(
         slug="color",
