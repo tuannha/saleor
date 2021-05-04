@@ -695,6 +695,7 @@ def test_create_variant_with_page_reference_attribute(
             "richText": None,
             "reference": page_ref_1,
             "name": page_list[0].title,
+            "boolean": None,
         },
         {
             "slug": f"{variant_pk}_{page_list[1].pk}",
@@ -702,6 +703,7 @@ def test_create_variant_with_page_reference_attribute(
             "richText": None,
             "reference": page_ref_2,
             "name": page_list[1].title,
+            "boolean": None,
         },
     ]
     for value in expected_values:
@@ -845,6 +847,7 @@ def test_create_variant_with_product_reference_attribute(
             "richText": None,
             "reference": product_ref_1,
             "name": product_list[0].name,
+            "boolean": None,
         },
         {
             "slug": f"{variant_pk}_{product_list[1].pk}",
@@ -852,6 +855,7 @@ def test_create_variant_with_product_reference_attribute(
             "richText": None,
             "reference": product_ref_2,
             "name": product_list[1].name,
+            "boolean": None,
         },
     ]
     for value in expected_values:
@@ -1250,6 +1254,7 @@ def test_create_variant_with_rich_text_attribute(
     staff_api_client,
     rich_text_attribute,
     warehouse,
+    size_attribute,
 ):
     product_type.variant_attributes.add(rich_text_attribute)
     query = CREATE_VARIANT_MUTATION
@@ -1266,6 +1271,8 @@ def test_create_variant_with_rich_text_attribute(
             "quantity": 20,
         }
     ]
+    size_attr_id = graphene.Node.to_global_id("Attribute", size_attribute.pk)
+
     variables = {
         "productId": product_id,
         "sku": sku,
@@ -1274,6 +1281,7 @@ def test_create_variant_with_rich_text_attribute(
         "price": price,
         "weight": weight,
         "attributes": [
+            {"id": size_attr_id, "values": ["XXXL"]},
             {"id": attr_id, "richText": rich_text},
         ],
         "trackInventory": True,
@@ -1287,7 +1295,7 @@ def test_create_variant_with_rich_text_attribute(
     data = content["productVariant"]
 
     assert not content["errors"]
-    assert data["name"] == sku
+    assert data["name"] == "XXXL"
     assert data["sku"] == sku
     assert data["attributes"][-1]["values"][0]["richText"] == rich_text
     created_webhook_mock.assert_called_once_with(product.variants.last())
@@ -1558,6 +1566,7 @@ QUERY_UPDATE_VARIANT_ATTRIBUTES = """
                             }
                             reference
                             richText
+                            boolean
                         }
                     }
                 }
@@ -1659,6 +1668,7 @@ def test_update_variant_with_rich_text_attribute(
     staff_api_client,
     rich_text_attribute,
     warehouse,
+    size_attribute,
 ):
     product_type.variant_attributes.add(rich_text_attribute)
     query = QUERY_UPDATE_VARIANT_ATTRIBUTES
@@ -1668,16 +1678,20 @@ def test_update_variant_with_rich_text_attribute(
     attr_id = graphene.Node.to_global_id("Attribute", rich_text_attribute.id)
     rich_text_attribute_value = rich_text_attribute.values.first()
     rich_text = json.dumps(rich_text_attribute_value.rich_text)
+    size_attr_id = graphene.Node.to_global_id("Attribute", size_attribute.pk)
+
     variables = {
         "id": variant_id,
         "sku": sku,
         "attributes": [
+            {"id": size_attr_id, "values": ["XXXL"]},
             {"id": attr_id, "richText": rich_text},
         ],
     }
     rich_text_attribute_value.slug = f"{variant.id}_{rich_text_attribute.id}"
     rich_text_attribute_value.save()
     values_count = rich_text_attribute.values.count()
+
     associate_attribute_values_to_instance(
         variant, rich_text_attribute, rich_text_attribute.values.first()
     )
@@ -1694,6 +1708,60 @@ def test_update_variant_with_rich_text_attribute(
     assert data["attributes"][-1]["attribute"]["slug"] == rich_text_attribute.slug
     assert data["attributes"][-1]["values"][0]["richText"] == rich_text
     assert rich_text_attribute.values.count() == values_count
+    product_variant_updated.assert_called_once_with(product.variants.last())
+
+
+@patch("saleor.plugins.manager.PluginsManager.product_variant_updated")
+def test_update_variant_with_boolean_attribute(
+    product_variant_updated,
+    permission_manage_products,
+    product,
+    product_type,
+    staff_api_client,
+    boolean_attribute,
+    warehouse,
+    size_attribute,
+):
+    product_type.variant_attributes.add(boolean_attribute)
+    query = QUERY_UPDATE_VARIANT_ATTRIBUTES
+    variant = product.variants.first()
+    variant_id = graphene.Node.to_global_id("ProductVariant", variant.pk)
+    sku = "123"
+    attr_id = graphene.Node.to_global_id("Attribute", boolean_attribute.id)
+    attr_value = boolean_attribute.values.first()
+    size_attr_id = graphene.Node.to_global_id("Attribute", size_attribute.pk)
+
+    new_value = False
+
+    variables = {
+        "id": variant_id,
+        "sku": sku,
+        "attributes": [
+            {"id": size_attr_id, "values": ["XXXL"]},
+            {"id": attr_id, "boolean": new_value},
+        ],
+    }
+    attr_value.slug = f"{variant.id}_{boolean_attribute.id}"
+    attr_value.save()
+    values_count = boolean_attribute.values.count()
+
+    associate_attribute_values_to_instance(
+        variant, boolean_attribute, boolean_attribute.values.first()
+    )
+
+    response = staff_api_client.post_graphql(
+        query, variables, permissions=[permission_manage_products]
+    )
+    content = get_graphql_content(response)["data"]["productVariantUpdate"]
+    variant.refresh_from_db()
+    data = content["productVariant"]
+
+    assert not content["errors"]
+    assert data["sku"] == sku
+    assert data["attributes"][-1]["attribute"]["slug"] == boolean_attribute.slug
+    assert data["attributes"][-1]["values"][0]["name"] == "Boolean: No"
+    assert data["attributes"][-1]["values"][0]["boolean"] is new_value
+    assert boolean_attribute.values.count() == values_count
     product_variant_updated.assert_called_once_with(product.variants.last())
 
 

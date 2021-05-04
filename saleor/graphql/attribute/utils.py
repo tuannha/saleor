@@ -296,8 +296,15 @@ class AttributeAssignmentMixin:
         """
         variant_validation = False
         if is_variant:
-            qs = get_variant_selection_attributes(attribute_qs)
-            if len(cleaned_input) < qs.count():
+            variant_selection_attributes = get_variant_selection_attributes(
+                attribute_qs
+            )
+            cleaned_input_attributes = [data[0] for data in cleaned_input]
+
+            if variant_selection_attributes and not all(
+                attr in cleaned_input_attributes
+                for attr in variant_selection_attributes
+            ):
                 raise ValidationError(
                     "All variant selection attributes must take a value.",
                     code=ProductErrorCode.REQUIRED.value,

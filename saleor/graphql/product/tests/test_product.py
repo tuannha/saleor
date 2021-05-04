@@ -3117,14 +3117,16 @@ def test_create_product_with_rich_text_attribute(
             "values": [
                 {
                     "slug": f"{product_id}_{rich_text_attribute.id}",
-                    "name": "test producttest producttest producttest productt…",
+                    "name": "test producttest producttest producttest producttest product",
                     "reference": None,
                     "richText": rich_text,
                     "file": None,
+                    "boolean": None,
                 }
             ],
         },
     ]
+
     for attr_data in data["product"]["attributes"]:
         assert attr_data in expected_attributes_data
 
@@ -3428,6 +3430,7 @@ def test_create_product_with_file_attribute(
                     "file": {"url": existing_value.file_url, "contentType": None},
                     "reference": None,
                     "richText": None,
+                    "boolean": None,
                 }
             ],
         },
@@ -3497,6 +3500,7 @@ def test_create_product_with_page_reference_attribute(
                     "file": None,
                     "richText": None,
                     "reference": reference,
+                    "boolean": None,
                 }
             ],
         },
@@ -3566,6 +3570,7 @@ def test_create_product_with_product_reference_attribute(
                     "file": None,
                     "richText": None,
                     "reference": reference,
+                    "boolean": None,
                 }
             ],
         },
@@ -3635,6 +3640,7 @@ def test_create_product_with_product_reference_attribute_values_saved_in_order(
             "file": None,
             "richText": None,
             "reference": reference,
+            "boolean": None,
         }
         for product, reference in zip(reference_instances, reference_ids)
     ]
@@ -3710,6 +3716,7 @@ def test_create_product_with_file_attribute_new_attribute_value(
                         "url": "http://testserver/media/" + non_existing_value,
                         "contentType": None,
                     },
+                    "boolean": None,
                 }
             ],
         },
@@ -4745,6 +4752,7 @@ MUTATION_UPDATE_PRODUCT = """
                             name
                             slug
                             reference
+                            boolean
                             file {
                                 url
                                 contentType
@@ -4965,6 +4973,7 @@ def test_update_product_with_file_attribute_value(
                     "url": "http://testserver/media/" + new_value,
                     "contentType": None,
                 },
+                "boolean": None,
             }
         ],
     }
@@ -5026,6 +5035,7 @@ def test_update_product_with_file_attribute_value_new_value_is_not_created(
                     "url": existing_value.file_url,
                     "contentType": existing_value.content_type,
                 },
+                "boolean": None,
             }
         ],
     }
@@ -5080,6 +5090,62 @@ def test_update_product_with_numeric_attribute_value(
                 "name": new_value,
                 "slug": slugify(
                     f"{product.id}_{numeric_attribute.id}", allow_unicode=True
+                ),
+                "reference": None,
+                "file": None,
+                "boolean": None,
+            }
+        ],
+    }
+    assert expected_att_data in attributes
+
+    updated_webhook_mock.assert_called_once_with(product)
+
+
+@patch("saleor.plugins.manager.PluginsManager.product_updated")
+def test_update_product_with_boolean_attribute_value(
+    updated_webhook_mock,
+    staff_api_client,
+    product,
+    product_type,
+    boolean_attribute,
+    permission_manage_products,
+):
+    # given
+    query = MUTATION_UPDATE_PRODUCT
+
+    product_id = graphene.Node.to_global_id("Product", product.pk)
+    attribute_id = graphene.Node.to_global_id("Attribute", boolean_attribute.pk)
+    product_type.product_attributes.add(boolean_attribute)
+
+    new_value = False
+
+    variables = {
+        "productId": product_id,
+        "input": {"attributes": [{"id": attribute_id, "boolean": new_value}]},
+    }
+
+    # when
+    response = staff_api_client.post_graphql(
+        query, variables, permissions=[permission_manage_products]
+    )
+
+    # then
+    content = get_graphql_content(response)
+    data = content["data"]["productUpdate"]
+    assert data["errors"] == []
+
+    attributes = data["product"]["attributes"]
+    assert len(attributes) == 2
+    expected_att_data = {
+        "attribute": {"id": attribute_id, "name": boolean_attribute.name},
+        "values": [
+            {
+                "id": ANY,
+                "name": "Boolean: No",
+                "boolean": new_value,
+                "slug": slugify(
+                    f"{product.id}_{boolean_attribute.id}", allow_unicode=True
                 ),
                 "reference": None,
                 "file": None,
@@ -5144,6 +5210,7 @@ def test_update_product_with_numeric_attribute_value_new_value_is_not_created(
                 "slug": slug_value,
                 "reference": None,
                 "file": None,
+                "boolean": None,
             }
         ],
     }
@@ -5278,6 +5345,7 @@ def test_update_product_with_page_reference_attribute_value(
                 "slug": f"{product.id}_{page.id}",
                 "file": None,
                 "reference": reference,
+                "boolean": None,
             }
         ],
     }
@@ -5351,6 +5419,7 @@ def test_update_product_with_page_reference_attribute_existing_value(
                 "slug": f"{product.id}_{page.id}",
                 "file": None,
                 "reference": reference,
+                "boolean": None,
             }
         ],
     }
@@ -5462,6 +5531,7 @@ def test_update_product_with_product_reference_attribute_value(
                 "slug": f"{product.id}_{product_ref.id}",
                 "file": None,
                 "reference": reference,
+                "boolean": None,
             }
         ],
     }
@@ -5536,6 +5606,7 @@ def test_update_product_with_product_reference_attribute_existing_value(
                 "slug": f"{product.id}_{product_ref.id}",
                 "file": None,
                 "reference": reference,
+                "boolean": None,
             }
         ],
     }
@@ -6638,8 +6709,8 @@ def test_create_product_type_with_rich_text_attribute(
         {
             "name": "Color",
             "values": [
-                {"name": "Red", "richText": None},
-                {"name": "Blue", "richText": None},
+                {"name": "Red", "richText": None, "boolean": None},
+                {"name": "Blue", "richText": None, "boolean": None},
             ],
         },
         {
@@ -6650,6 +6721,7 @@ def test_create_product_type_with_rich_text_attribute(
                     "richText": json.dumps(
                         rich_text_attribute.values.first().rich_text
                     ),
+                    "boolean": None,
                 }
             ],
         },
