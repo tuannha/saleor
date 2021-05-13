@@ -27,7 +27,6 @@ from ...payment.model_helpers import (
     get_last_payment,
     get_subtotal,
     get_total_authorized,
-    get_total_captured,
 )
 from ...product import ProductMediaTypes
 from ...product.product_images import get_product_image_thumbnail
@@ -69,7 +68,7 @@ from .dataloaders import (
     OrderLineByIdLoader,
     OrderLinesByOrderIdLoader,
 )
-from .enums import OrderEventsEmailsEnum, OrderEventsEnum
+from .enums import OrderEventsEmailsEnum, OrderEventsEnum, OrderOriginEnum
 from .utils import validate_draft_order
 
 
@@ -581,6 +580,10 @@ class Order(CountableDjangoObjectType):
         Invoice, required=False, description="List of order invoices."
     )
     number = graphene.String(description="User-friendly number of an order.")
+    original = graphene.ID(
+        description="The ID of the order that was the base for this order."
+    )
+    origin = OrderOriginEnum(description="The order origin.", required=True)
     is_paid = graphene.Boolean(
         description="Informs if an order is fully paid.", required=True
     )
@@ -874,14 +877,7 @@ class Order(CountableDjangoObjectType):
 
     @staticmethod
     def resolve_total_captured(root: models.Order, info):
-        def _resolve_total_captured(payments):
-            return get_total_captured(payments, root.currency)
-
-        return (
-            PaymentsByOrderIdLoader(info.context)
-            .load(root.id)
-            .then(_resolve_total_captured)
-        )
+        return root.total_paid
 
     @staticmethod
     def resolve_total_balance(root: models.Order, _info):
@@ -1035,6 +1031,7 @@ class Order(CountableDjangoObjectType):
         available_shipping_methods = []
         manager = info.context.plugins
         display_gross = display_gross_prices()
+        channel_slug = root.channel.slug
         for shipping_method in available:
             # Ignore typing check because it is checked in
             # get_valid_shipping_methods_for_order
@@ -1045,13 +1042,13 @@ class Order(CountableDjangoObjectType):
                 taxed_price = manager.apply_taxes_to_shipping(
                     shipping_channel_listing.price,
                     root.shipping_address,  # type: ignore
+                    channel_slug,
                 )
                 if display_gross:
                     shipping_method.price = taxed_price.gross
                 else:
                     shipping_method.price = taxed_price.net
                 available_shipping_methods.append(shipping_method)
-        channel_slug = root.channel.slug
         instances = [
             ChannelContext(node=shipping, channel_slug=channel_slug)
             for shipping in available_shipping_methods
@@ -1106,3 +1103,10 @@ class Order(CountableDjangoObjectType):
         except ValidationError as e:
             return validation_error_to_error_type(e, OrderError)
         return []
+
+    @staticmethod
+    @traced_resolver
+    def resolve_original(root, info, **_kwargs):
+        if not root.original_id:
+            return None
+        return graphene.Node.to_global_id("Order", root.original_id)
