@@ -2342,9 +2342,8 @@ ORDER_CAN_FINALIZE_QUERY = """
                 field
                 message
                 warehouse
-                orderLine
-                variants
                 orderLines
+                variants
             }
         }
     }

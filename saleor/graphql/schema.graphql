@@ -3111,9 +3111,8 @@ type OrderError {
   message: String
   code: OrderErrorCode!
   warehouse: ID
-  orderLine: ID
-  variants: [ID!]
   orderLines: [ID!]
+  variants: [ID!]
   addressType: AddressTypeEnum
 }
 
