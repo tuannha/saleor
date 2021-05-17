@@ -179,11 +179,14 @@ class AttributeAssignmentMixin:
         attribute: attribute_models.Attribute,
         attr_values: AttrValuesInput,
     ):
-        defaults = {
-            "boolean": attr_values.boolean,
-            "name": f"{attribute.name}: {'Yes' if attr_values.boolean else 'No'}",
-        }
-        return cls._update_or_create_value(instance, attribute, defaults)
+        get_or_create = attribute.values.get_or_create
+        value, _ = get_or_create(
+            attribute=attribute,
+            slug=slugify(f"{attribute.id}:{attr_values.boolean}", allow_unicode=True),
+            name=f"{attribute.name}: {'Yes' if attr_values.boolean else 'No'}",
+            boolean=attr_values.boolean,
+        )
+        return (value,)
 
     @classmethod
     def _update_or_create_value(
