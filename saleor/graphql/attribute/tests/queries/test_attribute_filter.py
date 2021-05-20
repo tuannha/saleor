@@ -10,8 +10,8 @@ from ....tests.utils import get_graphql_content
 from ...filters import filter_attributes_by_product_types
 
 ATTRIBUTES_FILTER_QUERY = """
-    query($filters: AttributeFilterInput!) {
-      attributes(first: 10, filter: $filters) {
+    query($filters: AttributeFilterInput!, $channel: String) {
+      attributes(first: 10, filter: $filters, channel: $channel) {
         edges {
           node {
             name
@@ -116,8 +116,8 @@ def test_filter_attributes_in_category_not_visible_in_listings_by_customer(
     variables = {
         "filters": {
             "inCategory": graphene.Node.to_global_id("Category", category.pk),
-            "channel": channel_USD.slug,
-        }
+        },
+        "channel": channel_USD.slug,
     }
 
     # when
@@ -165,8 +165,8 @@ def test_filter_attributes_in_category_not_visible_in_listings_by_staff_with_per
     variables = {
         "filters": {
             "inCategory": graphene.Node.to_global_id("Category", category.pk),
-            "channel": channel_USD.slug,
-        }
+        },
+        "channel": channel_USD.slug,
     }
 
     # when
@@ -208,8 +208,8 @@ def test_filter_attributes_in_category_not_in_listings_by_staff_without_manage_p
     variables = {
         "filters": {
             "inCategory": graphene.Node.to_global_id("Category", category.pk),
-            "channel": channel_USD.slug,
-        }
+        },
+        "channel": channel_USD.slug,
     }
 
     # when
@@ -254,8 +254,8 @@ def test_filter_attributes_in_category_not_visible_in_listings_by_app_with_perm(
     variables = {
         "filters": {
             "inCategory": graphene.Node.to_global_id("Category", category.pk),
-            "channel": channel_USD.slug,
-        }
+        },
+        "channel": channel_USD.slug,
     }
 
     # when
@@ -297,8 +297,8 @@ def test_filter_attributes_in_category_not_in_listings_by_app_without_manage_pro
     variables = {
         "filters": {
             "inCategory": graphene.Node.to_global_id("Category", category.pk),
-            "channel": channel_USD.slug,
-        }
+        },
+        "channel": channel_USD.slug,
     }
 
     # when
@@ -337,8 +337,8 @@ def test_filter_attributes_in_category_not_published_by_customer(
     variables = {
         "filters": {
             "inCategory": graphene.Node.to_global_id("Category", category.pk),
-            "channel": channel_USD.slug,
         },
+        "channel": channel_USD.slug,
     }
 
     # when
@@ -386,8 +386,8 @@ def test_filter_attributes_in_category_not_published_by_staff_with_perm(
     variables = {
         "filters": {
             "inCategory": graphene.Node.to_global_id("Category", category.pk),
-            "channel": channel_USD.slug,
-        }
+        },
+        "channel": channel_USD.slug,
     }
 
     # when
@@ -429,8 +429,8 @@ def test_filter_attributes_in_category_not_published_by_staff_without_manage_pro
     variables = {
         "filters": {
             "inCategory": graphene.Node.to_global_id("Category", category.pk),
-            "channel": channel_USD.slug,
-        }
+        },
+        "channel": channel_USD.slug,
     }
 
     # when
@@ -475,8 +475,8 @@ def test_filter_attributes_in_category_not_published_by_app_with_perm(
     variables = {
         "filters": {
             "inCategory": graphene.Node.to_global_id("Category", category.pk),
-            "channel": channel_USD.slug,
-        }
+        },
+        "channel": channel_USD.slug,
     }
 
     # when
@@ -518,8 +518,8 @@ def test_filter_attributes_in_category_not_published_by_app_without_manage_produ
     variables = {
         "filters": {
             "inCategory": graphene.Node.to_global_id("Category", category.pk),
-            "channel": channel_USD.slug,
-        }
+        },
+        "channel": channel_USD.slug,
     }
 
     # when
@@ -560,8 +560,8 @@ def test_filter_attributes_in_collection_not_visible_in_listings_by_customer(
     variables = {
         "filters": {
             "inCollection": graphene.Node.to_global_id("Collection", collection.pk),
-            "channel": channel_USD.slug,
-        }
+        },
+        "channel": channel_USD.slug,
     }
 
     # when
@@ -602,8 +602,8 @@ def test_filter_in_collection_not_published_by_customer(
     variables = {
         "filters": {
             "inCollection": graphene.Node.to_global_id("Collection", collection.pk),
-            "channel": channel_USD.slug,
-        }
+        },
+        "channel": channel_USD.slug,
     }
 
     # when
@@ -654,8 +654,8 @@ def test_filter_in_collection_not_published_by_staff_with_perm(
     variables = {
         "filters": {
             "inCollection": graphene.Node.to_global_id("Collection", collection.pk),
-            "channel": channel_USD.slug,
-        }
+        },
+        "channel": channel_USD.slug,
     }
 
     # when
@@ -700,8 +700,8 @@ def test_filter_in_collection_not_published_by_staff_without_manage_products(
     variables = {
         "filters": {
             "inCollection": graphene.Node.to_global_id("Collection", collection.pk),
-            "channel": channel_USD.slug,
-        }
+        },
+        "channel": channel_USD.slug,
     }
 
     # when
@@ -749,8 +749,8 @@ def test_filter_in_collection_not_published_by_app_with_perm(
     variables = {
         "filters": {
             "inCollection": graphene.Node.to_global_id("Collection", collection.pk),
-            "channel": channel_USD.slug,
-        }
+        },
+        "channel": channel_USD.slug,
     }
 
     # when
@@ -795,8 +795,8 @@ def test_filter_in_collection_not_published_by_app_without_manage_products(
     variables = {
         "filters": {
             "inCollection": graphene.Node.to_global_id("Collection", collection.pk),
-            "channel": channel_USD.slug,
-        }
+        },
+        "channel": channel_USD.slug,
     }
 
     # when
