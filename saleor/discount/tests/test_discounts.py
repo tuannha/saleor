@@ -30,7 +30,7 @@ from ..utils import (
 
 
 @pytest.mark.parametrize(
-    "min_spent_amount, value, tax_included",
+    "min_spent_amount, value, display_gross_prices",
     [
         (Money(7, "USD"), TaxedMoney(net=Money(5, "USD"), gross=Money(7, "USD")), True),
         (
@@ -41,9 +41,9 @@ from ..utils import (
     ],
 )
 def test_valid_voucher_min_spent_amount(
-    min_spent_amount, value, tax_included, channel_USD, site_settings
+    min_spent_amount, value, display_gross_prices, channel_USD, site_settings
 ):
-    site_settings.include_taxes_in_prices = tax_included
+    site_settings.display_gross_prices = display_gross_prices
     site_settings.save()
 
     voucher = Voucher.objects.create(
