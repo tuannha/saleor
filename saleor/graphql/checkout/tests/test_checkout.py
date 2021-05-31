@@ -217,6 +217,32 @@ def test_checkout_create_with_inactive_channel(
     assert error["code"] == CheckoutErrorCode.CHANNEL_INACTIVE.name
 
 
+def test_checkout_create_with_alternative_channel(
+    api_client, stock, graphql_address_data, channel_USD, channel_PLN
+):
+    channel = channel_USD
+    channel.is_active = True
+    channel.save()
+
+    variant = stock.product_variant
+    variant_id = graphene.Node.to_global_id("ProductVariant", variant.id)
+    test_email = "test@example.com"
+    shipping_address = graphql_address_data
+    variables = {
+        "checkoutInput": {
+            "channel": channel.slug,
+            "alternative_channel": channel_PLN.slug,
+            "lines": [{"quantity": 1, "variantId": variant_id}],
+            "email": test_email,
+            "shippingAddress": shipping_address,
+        }
+    }
+
+    response = api_client.post_graphql(MUTATION_CHECKOUT_CREATE, variables)
+    checkout = Checkout.objects.first()
+    assert checkout.alternative_channel == channel_PLN
+
+
 def test_checkout_create_with_zero_quantity(
     api_client, stock, graphql_address_data, channel_USD
 ):

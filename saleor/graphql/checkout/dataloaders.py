@@ -208,11 +208,14 @@ class CheckoutInfoByCheckoutTokenLoader(DataLoader):
                     }
 
                     checkout_info_map = {}
-                    for key, checkout, channel in zip(keys, checkouts, channels):
+                    for key, checkout, channel, alternative_channel in zip(
+                        keys, checkouts, channels, channels
+                    ):
                         checkout_info_map[key] = CheckoutInfo(
                             checkout=checkout,
                             user=user_map.get(checkout.user_id),
                             channel=channel,
+                            alternative_channel=alternative_channel,
                             billing_address=address_map.get(
                                 checkout.billing_address_id
                             ),

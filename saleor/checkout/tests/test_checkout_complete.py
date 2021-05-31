@@ -21,6 +21,48 @@ from ..fetch import fetch_checkout_info, fetch_checkout_lines
 from ..utils import add_variant_to_checkout
 
 
+def test_create_order_alternative_channel(
+    checkout_with_items_and_shipping,
+    customer_user,
+    shipping_method,
+    payment_txn_captured
+):
+    checkout = checkout_with_items_and_shipping
+    checkout_user = customer_user
+
+    # Ensure not events are existing prior
+    assert not OrderEvent.objects.exists()
+    assert not CustomerEvent.objects.exists()
+
+    # Prepare valid checkout
+    checkout.user = checkout_user
+    checkout.billing_address = customer_user.default_billing_address
+    checkout.shipping_address = customer_user.default_shipping_address
+    checkout.shipping_method = shipping_method
+    checkout.payments.add(payment_txn_captured)
+    checkout.tracking_code = "tracking_code"
+    checkout.redirect_url = "https://www.example.com"
+    checkout.save()
+
+    # Place checkout
+    manager = get_plugins_manager()
+    lines = fetch_checkout_lines(checkout)
+    checkout_info = fetch_checkout_info(checkout, lines, [], manager)
+    order = _create_order(
+        checkout_info=checkout_info,
+        order_data=_prepare_order_data(
+            manager=manager,
+            checkout_info=checkout_info,
+            lines=lines,
+            discounts=None,
+        ),
+        user=customer_user,
+        manager=manager,
+    )
+    flush_post_commit_hooks()
+    assert order.channel == checkout.alternative_channel
+
+
 @mock.patch("saleor.plugins.manager.PluginsManager.notify")
 def test_create_order_captured_payment_creates_expected_events(
     mock_notify,
