@@ -955,6 +955,7 @@ type CheckoutCreate {
 
 input CheckoutCreateInput {
   channel: String
+  alternative_channel: String
   lines: [CheckoutLineInput]!
   email: String
   shippingAddress: AddressInput

@@ -215,6 +215,7 @@ class Checkout(CountableDjangoObjectType):
             "is_shipping_required",
             "last_change",
             "channel",
+            "alternative_channel",
             "note",
             "shipping_address",
             "translated_discount_name",

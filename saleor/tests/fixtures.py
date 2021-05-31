@@ -254,11 +254,35 @@ def site_settings(db, settings) -> SiteSettings:
 
 
 @pytest.fixture
+def checkout_with_alternative_channel(db, channel_USD, channel_PLN):
+    checkout = Checkout.objects.create(
+        currency=channel_USD.currency_code,
+        channel=channel_USD,
+        alternative_channel=channel_PLN
+    )
+    checkout.set_country("US", commit=True)
+    return checkout
+
+
+@pytest.fixture
 def checkout(db, channel_USD):
     checkout = Checkout.objects.create(
         currency=channel_USD.currency_code, channel=channel_USD
     )
     checkout.set_country("US", commit=True)
+    return checkout
+
+
+@pytest.fixture
+def checkout_with_item_and_alternative_channel(
+    checkout_with_alternative_channel, product
+):
+    variant = product.variants.get()
+    checkout_info = fetch_checkout_info(
+        checkout_with_alternative_channel, [], [], get_plugins_manager()
+    )
+    add_variant_to_checkout(checkout_info, variant, 3)
+    checkout.save()
     return checkout
 
 

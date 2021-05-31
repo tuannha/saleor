@@ -61,6 +61,8 @@ All notable, unreleased changes to this project will be documented in this file.
 - Allow passing metadata to `accountRegister` mutation - #7152 by @piotrgrundas
 - Fix incorrect payment data for klarna - #7150 by @IKarbowiak
 - Drop deleted images from storage - #7129 by @IKarbowiak
+- Fix export with empty assignment values - #7214 by @IKarbowiak
+- Change exported file name - #7222 by @IKarbowiak
 - Fix core sorting on related fields - #7195 by @tomaszszymanski129
 - Fix variants dataloaders when querying with default channel - #7206 by @tomaszszymanski129
 - Performance upgrade on orders query with `subtotal` field - #7174 by @tomaszszymanski129

@@ -99,6 +99,8 @@ class ApiClient(Client):
                 self.app.permissions.add(*permissions)
             else:
                 self.user.user_permissions.add(*permissions)
+
+        print(data)
         result = super().post(API_PATH, data, **kwargs)
         flush_post_commit_hooks()
         return result
